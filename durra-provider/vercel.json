@@ -1,6 +1,6 @@
 {
-  "name": "durra-seller",
-  "alias": ["seller.durrahonline.com"],
+  "name": "durra-provider",
+  "framework": "nextjs",
   "headers": [
     {
       "source": "/(.*)",
