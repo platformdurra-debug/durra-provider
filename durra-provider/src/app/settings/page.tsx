@@ -22,10 +22,13 @@ export default function ProviderSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(false);
 
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
+
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user?.uid) return;
+    setFetching(true);
     getDocs(query(collection(db, "providers"), where("ownerId", "==", user.uid))).then(snap => {
       if (!snap.empty) {
         const d = snap.docs[0].data();
@@ -34,8 +37,9 @@ export default function ProviderSettingsPage() {
         setInstagram(d.instagram || ""); setArea(d.area || ""); setDescription(d.description || "");
         setWorkFrom(d.workingHours?.from || ""); setWorkTo(d.workingHours?.to || "");
       }
-    });
-  }, [user]);
+      setFetching(false);
+    }).catch(() => setFetching(false));
+  }, [user, loading]);
 
   const save = async () => {
     if (!providerId) return;
@@ -55,6 +59,8 @@ export default function ProviderSettingsPage() {
     setUploading(null);
   };
 
+  if (loading || fetching) return <div className="loading-screen"><div className="spinner" /></div>;
+
   return (
     <div className="page-wrap">
       <div className="page-header">
@@ -67,7 +73,6 @@ export default function ProviderSettingsPage() {
       </div>
 
       <div style={{ padding: "16px" }}>
-        {/* Images */}
         <div className="card" style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 14, fontWeight: 600 }}>صور المحل</div>
           <div style={{ display: "flex", gap: 12 }}>
