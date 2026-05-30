@@ -11,13 +11,16 @@ export default function ProductsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
-  const [fetching, setFetching] = useState(true);
+  const [fetching, setFetching] = useState(false);
 
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
+
   useEffect(() => {
     if (loading || !user?.uid) return;
+    setFetching(true);
     getDocs(query(collection(db, "providerProducts"), where("providerId", "==", user.uid)))
-      .then(snap => { setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); });
+      .then(snap => { setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); })
+      .catch(() => setFetching(false));
   }, [user, loading]);
 
   const toggleActive = async (id: string, cur: boolean) => {
