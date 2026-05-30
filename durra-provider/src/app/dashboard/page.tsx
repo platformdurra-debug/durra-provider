@@ -26,13 +26,14 @@ export default function ProviderDashboard() {
   const [provider, setProvider] = useState<any>(null);
   const [stats, setStats] = useState({ total: 0, pending: 0, completed: 0, earnings: 0 });
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
-  const [fetching, setFetching] = useState(true);
+  const [fetching, setFetching] = useState(false); // ← false مو true
   const [statusLoading, setStatusLoading] = useState(false);
 
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
 
   useEffect(() => {
     if (loading || !user?.uid) return;
+    setFetching(true); // ← نبدأ loading هنا بس لما نعرف user موجود
     Promise.all([
       getDocs(query(collection(db, "providers"), where("ownerId", "==", user.uid))),
       getDocs(query(collection(db, "serviceBookings"), where("providerId", "==", user.uid), orderBy("createdAt", "desc"))),
