@@ -4,10 +4,10 @@ import { useAuthStore } from "@/store/authStore";
 
 export const useAuth = () => {
   const store = useAuthStore();
-  
+
   useEffect(() => {
-    if (store.loading) store.init();
+    store.init();
   }, []);
-  
+
   return store;
 };
