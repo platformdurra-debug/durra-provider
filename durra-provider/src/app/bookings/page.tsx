@@ -18,14 +18,17 @@ export default function BookingsPage() {
   const router = useRouter();
   const [bookings, setBookings] = useState<any[]>([]);
   const [tab, setTab] = useState("all");
-  const [fetching, setFetching] = useState(true);
+  const [fetching, setFetching] = useState(false);
 
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
+
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user?.uid) return;
+    setFetching(true);
     getDocs(query(collection(db, "serviceBookings"), where("providerId", "==", user.uid), orderBy("createdAt", "desc")))
-      .then(snap => { setBookings(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); });
-  }, [user]);
+      .then(snap => { setBookings(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); })
+      .catch(() => setFetching(false));
+  }, [user, loading]);
 
   const updateStatus = async (id: string, status: string) => {
     await updateDoc(doc(db, "serviceBookings", id), { status });
@@ -41,7 +44,7 @@ export default function BookingsPage() {
 
   const filtered = tab === "all" ? bookings : bookings.filter(b => b.status === tab);
 
-  if (fetching) return <div className="loading-screen"><div className="spinner" /></div>;
+  if (loading || fetching) return <div className="loading-screen"><div className="spinner" /></div>;
 
   return (
     <div className="page-wrap">
