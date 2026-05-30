@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { User } from "@/types";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
@@ -37,10 +42,13 @@ function redirectToCorrectApp(role: string) {
   }
 }
 
-let initialized = false;
+// Use a module-level unsubscribe ref instead of a boolean flag
+let unsubscribe: (() => void) | null = null;
 
 interface AuthStore {
-  user: User | null; loading: boolean; error: string | null;
+  user: User | null;
+  loading: boolean;
+  error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, phone: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -48,7 +56,9 @@ interface AuthStore {
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: null, loading: true, error: null,
+  user: null,
+  loading: true,
+  error: null,
 
   login: async (email, password) => {
     try {
@@ -60,9 +70,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
       setRoleCookie(userData.role);
       redirectToCorrectApp(userData.role);
     } catch (e: any) {
-      const msg = e.code === "auth/wrong-password" || e.code === "auth/user-not-found"
-        ? "البريد الإلكتروني أو كلمة المرور غير صحيحة"
-        : e.code === "auth/too-many-requests" ? "محاولات كثيرة — انتظري قليلاً" : e.message;
+      const msg =
+        e.code === "auth/wrong-password" || e.code === "auth/user-not-found"
+          ? "البريد الإلكتروني أو كلمة المرور غير صحيحة"
+          : e.code === "auth/too-many-requests"
+          ? "محاولات كثيرة — انتظري قليلاً"
+          : e.message;
       set({ error: msg, loading: false });
     }
   },
@@ -71,28 +84,47 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       set({ error: null });
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser: User = { uid: result.user.uid, email, displayName: name, phone, role: "customer", createdAt: new Date(), points: 0, level: "normal" };
+      const newUser: User = {
+        uid: result.user.uid,
+        email,
+        displayName: name,
+        phone,
+        role: "customer",
+        createdAt: new Date(),
+        points: 0,
+        level: "normal",
+      };
       await setDoc(doc(db, "users", result.user.uid), newUser);
       set({ user: newUser, loading: false });
       setRoleCookie("customer");
     } catch (e: any) {
-      const msg = e.code === "auth/email-already-in-use" ? "هذا البريد مسجّل مسبقاً" : e.code === "auth/weak-password" ? "كلمة المرور ضعيفة" : e.message;
+      const msg =
+        e.code === "auth/email-already-in-use"
+          ? "هذا البريد مسجّل مسبقاً"
+          : e.code === "auth/weak-password"
+          ? "كلمة المرور ضعيفة"
+          : e.message;
       set({ error: msg, loading: false });
     }
   },
 
   logout: async () => {
+    // Unsubscribe listener before signing out so we can re-init later
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
     await signOut(auth);
     clearRoleCookie();
-    initialized = false;
     set({ user: null, loading: false });
     if (typeof window !== "undefined") window.location.href = "/auth";
   },
 
   init: () => {
-    if (initialized) return;
-    initialized = true;
-    onAuthStateChanged(auth, async (firebaseUser) => {
+    // Already subscribed — don't attach another listener
+    if (unsubscribe) return;
+
+    unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
           const snap = await getDoc(doc(db, "users", firebaseUser.uid));
