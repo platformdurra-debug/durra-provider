@@ -42,7 +42,6 @@ function redirectToCorrectApp(role: string) {
   }
 }
 
-// Use a module-level unsubscribe ref instead of a boolean flag
 let unsubscribe: (() => void) | null = null;
 
 interface AuthStore {
@@ -62,7 +61,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   login: async (email, password) => {
     try {
-      set({ error: null });
+      set({ error: null, loading: true });
       const result = await signInWithEmailAndPassword(auth, email, password);
       const snap = await getDoc(doc(db, "users", result.user.uid));
       const userData = snap.data() as User;
@@ -109,7 +108,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: async () => {
-    // Unsubscribe listener before signing out so we can re-init later
     if (unsubscribe) {
       unsubscribe();
       unsubscribe = null;
@@ -121,10 +119,21 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   init: () => {
-    // Already subscribed — don't attach another listener
     if (unsubscribe) return;
 
+    // Safety timeout — if Firebase doesn't respond in 8 seconds, stop loading
+    const timeout = setTimeout(() => {
+      set((state) => {
+        if (state.loading) {
+          console.warn("Auth timeout — Firebase did not respond");
+          return { loading: false };
+        }
+        return {};
+      });
+    }, 8000);
+
     unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      clearTimeout(timeout);
       if (firebaseUser) {
         try {
           const snap = await getDoc(doc(db, "users", firebaseUser.uid));
