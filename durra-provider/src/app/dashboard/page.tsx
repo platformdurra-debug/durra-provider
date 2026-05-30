@@ -32,7 +32,7 @@ export default function ProviderDashboard() {
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
 
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user?.uid) return;
     Promise.all([
       getDocs(query(collection(db, "providers"), where("ownerId", "==", user.uid))),
       getDocs(query(collection(db, "serviceBookings"), where("providerId", "==", user.uid), orderBy("createdAt", "desc"))),
@@ -44,7 +44,7 @@ export default function ProviderDashboard() {
       setRecentBookings(bookings.slice(0, 4));
       setFetching(false);
     });
-  }, [user]);
+  }, [user, loading]);
 
   const changeStatus = async (status: string) => {
     if (!provider) return;
@@ -54,13 +54,10 @@ export default function ProviderDashboard() {
     setStatusLoading(false);
   };
 
-  if (fetching) return <div className="loading-screen"><div className="spinner" /></div>;
-
-  const currentStatus = STATUS_OPTIONS.find(s => s.val === (provider?.status || "open")) || STATUS_OPTIONS[0];
+  if (loading || fetching) return <div className="loading-screen"><div className="spinner" /></div>;
 
   return (
     <div className="page-wrap">
-      {/* Header */}
       <div className="page-header">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <Link href="/profile" style={{ textDecoration: "none" }}>
@@ -74,7 +71,6 @@ export default function ProviderDashboard() {
           </div>
         </div>
 
-        {/* Status */}
         <div style={{ marginTop: 20, background: "rgba(255,255,255,0.06)", borderRadius: 16, border: "1px solid rgba(201,169,110,0.15)", padding: "14px 16px" }}>
           <div style={{ fontSize: 10, color: "rgba(201,169,110,0.4)", marginBottom: 10, textAlign: "right", letterSpacing: 1 }}>حالة المحل</div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -89,7 +85,6 @@ export default function ProviderDashboard() {
       </div>
 
       <div style={{ padding: "20px 16px" }}>
-        {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
           {[
             { label: "إجمالي الطلبات", value: stats.total,               color: "var(--text)" },
@@ -104,7 +99,6 @@ export default function ProviderDashboard() {
           ))}
         </div>
 
-        {/* Quick Links */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 24 }}>
           {[
             { href: "/products/new", label: "إضافة خدمة" },
@@ -112,16 +106,13 @@ export default function ProviderDashboard() {
             { href: "/reviews",      label: "التقييمات" },
           ].map(item => (
             <Link href={item.href} key={item.label} style={{ textDecoration: "none" }}>
-              <div style={{ background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)", padding: "14px 10px", textAlign: "center", transition: "all 0.2s" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(201,169,110,0.35)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "#E8DDD0"; }}>
+              <div style={{ background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)", padding: "14px 10px", textAlign: "center", transition: "all 0.2s" }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "var(--gold3)", fontFamily: "Tajawal" }}>{item.label}</div>
               </div>
             </Link>
           ))}
         </div>
 
-        {/* Recent Bookings */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <Link href="/bookings" style={{ textDecoration: "none", fontSize: 12, color: "var(--gold3)", fontWeight: 700 }}>عرض الكل ←</Link>
           <div className="section-title" style={{ marginBottom: 0 }}>آخر الطلبات</div>
