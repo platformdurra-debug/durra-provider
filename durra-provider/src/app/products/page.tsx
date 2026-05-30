@@ -15,10 +15,10 @@ export default function ProductsPage() {
 
   useEffect(() => { if (!loading && !user) router.push("/auth"); }, [user, loading]);
   useEffect(() => {
-    if (!user) return;
+    if (loading || !user?.uid) return;
     getDocs(query(collection(db, "providerProducts"), where("providerId", "==", user.uid)))
       .then(snap => { setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setFetching(false); });
-  }, [user]);
+  }, [user, loading]);
 
   const toggleActive = async (id: string, cur: boolean) => {
     await updateDoc(doc(db, "providerProducts", id), { active: !cur });
@@ -30,7 +30,7 @@ export default function ProductsPage() {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, featured: !cur } : p));
   };
 
-  if (fetching) return <div className="loading-screen"><div className="spinner" /></div>;
+  if (loading || fetching) return <div className="loading-screen"><div className="spinner" /></div>;
 
   return (
     <div className="page-wrap">
