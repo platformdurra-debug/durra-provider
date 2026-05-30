@@ -43,6 +43,9 @@ export default function ProviderDashboard() {
       setStats({ total: bookings.length, pending: bookings.filter((b: any) => b.status === "pending").length, completed: completed.length, earnings: completed.reduce((s: number, b: any) => s + (b.providerAmount || 0), 0) });
       setRecentBookings(bookings.slice(0, 4));
       setFetching(false);
+    }).catch((err) => {
+      console.error("Dashboard fetch error:", err);
+      setFetching(false);
     });
   }, [user, loading]);
 
