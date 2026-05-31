@@ -8,9 +8,11 @@ import { useRouter } from "next/navigation";
 import ProviderNav from "@/components/ProviderNav";
 
 export default function ProviderSettingsPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [providerId, setProviderId] = useState("");
+
+  // بيانات المحل
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -19,8 +21,15 @@ export default function ProviderSettingsPage() {
   const [description, setDescription] = useState("");
   const [workFrom, setWorkFrom] = useState("");
   const [workTo, setWorkTo] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+
+  // بيانات الاستلام
+  const [bankName, setBankName] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [iban, setIban] = useState("");
+  const [beneficiaryPhone, setBeneficiaryPhone] = useState("");
+
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
 
@@ -36,17 +45,28 @@ export default function ProviderSettingsPage() {
         setName(d.name || ""); setPhone(d.phone || ""); setWhatsapp(d.whatsapp || "");
         setInstagram(d.instagram || ""); setArea(d.area || ""); setDescription(d.description || "");
         setWorkFrom(d.workingHours?.from || ""); setWorkTo(d.workingHours?.to || "");
+        setBankName(d.bankName || ""); setAccountName(d.accountName || "");
+        setIban(d.iban || ""); setBeneficiaryPhone(d.beneficiaryPhone || "");
       }
       setFetching(false);
     }).catch(() => setFetching(false));
   }, [user, loading]);
 
-  const save = async () => {
+  const saveSection = async (section: string) => {
     if (!providerId) return;
-    setSaving(true);
-    await updateDoc(doc(db, "providers", providerId), { name, phone, whatsapp, instagram, area, description, workingHours: { from: workFrom, to: workTo } });
-    setSaved(true); setSaving(false);
-    setTimeout(() => setSaved(false), 2000);
+    setSaving(section);
+    try {
+      if (section === "profile") {
+        await updateDoc(doc(db, "providers", providerId), {
+          name, phone, whatsapp, instagram, area, description,
+          workingHours: { from: workFrom, to: workTo }
+        });
+      } else if (section === "bank") {
+        await updateDoc(doc(db, "providers", providerId), { bankName, accountName, iban, beneficiaryPhone });
+      }
+      setSaved(section);
+      setTimeout(() => setSaved(null), 2000);
+    } finally { setSaving(null); }
   };
 
   const uploadImage = async (file: File, field: string) => {
@@ -65,15 +85,17 @@ export default function ProviderSettingsPage() {
     <div className="page-wrap">
       <div className="page-header">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {saved && <span style={{ fontSize: 12, color: "#34D399", fontWeight: 700 }}>✓ تم الحفظ</span>}
+          <div style={{ fontSize: 10, color: "rgba(201,169,110,0.4)", letterSpacing: 2 }}>PROVIDER</div>
           <div className="logo-text">درّة ✦</div>
         </div>
         <div className="page-title">إعدادات المحل</div>
-        <div className="page-sub">تحديث معلومات وصور محلك</div>
+        <div className="page-sub">معلومات محلك وبيانات الاستلام</div>
       </div>
 
-      <div style={{ padding: "16px" }}>
-        <div className="card" style={{ marginBottom: 14 }}>
+      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* صور المحل */}
+        <div className="card">
           <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 14, fontWeight: 600 }}>صور المحل</div>
           <div style={{ display: "flex", gap: 12 }}>
             {["coverImage", "logoImage"].map(field => (
@@ -89,22 +111,59 @@ export default function ProviderSettingsPage() {
           </div>
         </div>
 
-        <div className="card" style={{ marginBottom: 14 }}>
+        {/* بيانات المحل */}
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            {saved === "profile" && <span style={{ fontSize: 12, color: "#34D399", fontWeight: 700 }}>✓ تم الحفظ</span>}
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text2)" }}>معلومات المحل</div>
+          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <input className="input" placeholder="اسم المحل" value={name} onChange={e => setName(e.target.value)} />
             <input className="input" placeholder="المنطقة" value={area} onChange={e => setArea(e.target.value)} />
             <input className="input" placeholder="رقم الجوال" value={phone} onChange={e => setPhone(e.target.value)} type="tel" />
             <input className="input" placeholder="واتساب" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} type="tel" />
-            <input className="input" placeholder="إنستقرام" value={instagram} onChange={e => setInstagram(e.target.value)} />
+            <input className="input" placeholder="إنستقرام (اختياري)" value={instagram} onChange={e => setInstagram(e.target.value)} />
             <textarea className="input" placeholder="وصف المحل..." value={description} onChange={e => setDescription(e.target.value)} style={{ height: 80, resize: "none" }} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <input className="input" placeholder="من (9:00 AM)" value={workFrom} onChange={e => setWorkFrom(e.target.value)} />
               <input className="input" placeholder="إلى (10:00 PM)" value={workTo} onChange={e => setWorkTo(e.target.value)} />
             </div>
           </div>
+          <button onClick={() => saveSection("profile")} disabled={saving === "profile"} className="btn-gold" style={{ marginTop: 14 }}>
+            {saving === "profile" ? "جاري الحفظ..." : "حفظ المعلومات"}
+          </button>
         </div>
 
-        <button onClick={save} disabled={saving} className="btn-gold">{saving ? "جاري الحفظ..." : "حفظ التغييرات"}</button>
+        {/* بيانات الاستلام */}
+        <div className="card" style={{ borderColor: "rgba(201,169,110,0.2)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            {saved === "bank" && <span style={{ fontSize: 12, color: "#34D399", fontWeight: 700 }}>✓ تم الحفظ</span>}
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text2)" }}>🏦 بيانات الاستلام</div>
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text4)", marginBottom: 14, textAlign: "right", lineHeight: 1.6 }}>
+            ستُستخدم لتحويل أرباحك عند طلب الصرف
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <input className="input" placeholder="اسم البنك" value={bankName} onChange={e => setBankName(e.target.value)} />
+            <input className="input" placeholder="اسم صاحب الحساب" value={accountName} onChange={e => setAccountName(e.target.value)} />
+            <input className="input" placeholder="رقم IBAN" value={iban} onChange={e => setIban(e.target.value.toUpperCase())} style={{ direction: "ltr", textAlign: "left" }} />
+            <input className="input" placeholder="رقم جوال المستفيد" value={beneficiaryPhone} onChange={e => setBeneficiaryPhone(e.target.value)} type="tel" />
+          </div>
+          <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 12, background: "rgba(201,169,110,0.06)", border: "1px solid rgba(201,169,110,0.15)" }}>
+            <div style={{ fontSize: 11, color: "rgba(201,169,110,0.5)", textAlign: "right" }}>
+              ⚠️ تأكد من صحة البيانات — درّة غير مسؤولة عن أي تحويل خاطئ
+            </div>
+          </div>
+          <button onClick={() => saveSection("bank")} disabled={saving === "bank"} className="btn-gold" style={{ marginTop: 14 }}>
+            {saving === "bank" ? "جاري الحفظ..." : "حفظ بيانات الاستلام"}
+          </button>
+        </div>
+
+        {/* تسجيل الخروج */}
+        <button onClick={logout} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "1px solid rgba(192,57,43,0.2)", cursor: "pointer", fontFamily: "Tajawal", fontWeight: 700, fontSize: 14, background: "rgba(192,57,43,0.05)", color: "var(--red)" }}>
+          تسجيل الخروج
+        </button>
+
       </div>
       <ProviderNav />
     </div>
